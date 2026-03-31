@@ -2,7 +2,8 @@ import pytest
 import numpy as np
 
 from instruments.option import EuropeanOption
-from pricing import BlackScholes, MonteCarlo
+from instruments.bond import ZeroCouponBond, CouponBond
+from pricing import BlackScholes, MonteCarlo, DCF
 
 
 def make_option(**overrides):
@@ -279,3 +280,80 @@ class TestMonteCarlo:
             pass
         with pytest.raises(TypeError, match="MonteCarlo cannot price"):
             MonteCarlo(FakeInstrument())
+
+
+class TestDCF:
+    def test_zcb_price(self):
+        """ZCB price = FV * exp(-r * T)"""
+        zcb = ZeroCouponBond(fv=1000, mat=2.0)
+        dcf = DCF(zcb, r=0.05)
+        expected = 1000 * np.exp(-0.05 * 2.0)
+        assert dcf.price() == pytest.approx(expected)
+
+    def test_zcb_price_zero_rate(self):
+        zcb = ZeroCouponBond(fv=1000, mat=5.0)
+        dcf = DCF(zcb, r=0.0)
+        assert dcf.price() == pytest.approx(1000.0)
+
+    def test_zcb_price_decreases_with_rate(self):
+        zcb = ZeroCouponBond(fv=1000, mat=5.0)
+        low = DCF(zcb, r=0.02).price()
+        high = DCF(zcb, r=0.10).price()
+        assert low > high
+
+    def test_zcb_price_decreases_with_maturity(self):
+        short = DCF(ZeroCouponBond(fv=1000, mat=1.0), r=0.05).price()
+        long = DCF(ZeroCouponBond(fv=1000, mat=10.0), r=0.05).price()
+        assert short > long
+
+    def test_cb_price_greater_than_zcb(self):
+        """Coupon bond should be worth more than ZCB with same FV/mat/rate"""
+        r = 0.05
+        zcb = ZeroCouponBond(fv=1000, mat=5.0)
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.06, freq=2)
+        assert DCF(cb, r=r).price() > DCF(zcb, r=r).price()
+
+    def test_cb_price_at_par(self):
+        """When coupon rate equals discount rate, bond should price near par"""
+        cb = CouponBond(fv=1000, mat=10.0, coupon_rate=0.05, freq=1)
+        price = DCF(cb, r=0.05).price()
+        assert price == pytest.approx(1000.0, rel=0.01)
+
+    def test_cb_premium_when_coupon_above_rate(self):
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.08, freq=2)
+        assert DCF(cb, r=0.04).price() > 1000
+
+    def test_cb_discount_when_coupon_below_rate(self):
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.02, freq=2)
+        assert DCF(cb, r=0.06).price() < 1000
+
+    def test_cb_price_positive(self):
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.06, freq=2)
+        assert DCF(cb, r=0.05).price() > 0
+
+    def test_zcb_duration_equals_maturity(self):
+        zcb = ZeroCouponBond(fv=1000, mat=7.0)
+        assert DCF(zcb, r=0.05).duration() == 7.0
+
+    def test_dv01_positive(self):
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.06, freq=2)
+        assert DCF(cb, r=0.05).dv0x() > 0
+
+    def test_dv01_large_bp_shift_normalized(self):
+        """When bp_shift >= 0.01, it should be divided by 100"""
+        cb = CouponBond(fv=1000, mat=5.0, coupon_rate=0.06, freq=2)
+        dv01_normal = DCF(cb, r=0.05).dv0x(bp_shift=0.0001)
+        dv01_large = DCF(cb, r=0.05).dv0x(bp_shift=0.01)
+        assert dv01_normal == pytest.approx(dv01_large)
+
+    def test_dv01_increases_with_maturity(self):
+        short = DCF(CouponBond(fv=1000, mat=2.0, coupon_rate=0.05, freq=2), r=0.05).dv0x()
+        long = DCF(CouponBond(fv=1000, mat=10.0, coupon_rate=0.05, freq=2), r=0.05).dv0x()
+        assert long > short
+
+    def test_unsupported_instrument_raises(self):
+        from instruments.base import Instrument
+        class FakeInstrument(Instrument):
+            pass
+        with pytest.raises(TypeError, match="DCF cannot price"):
+            DCF(FakeInstrument(), r=0.05)
