@@ -6,7 +6,7 @@ from .motion import Motion
 class GeometricBrownianMotion(Motion):
     def __init__(self,
                  S0: float, mu: float, sigma: float,
-                 T: int,
+                 T: float,
                  n_steps: int,
                  RANDOM_STATE: int = 7,
                  **kwargs: Any) -> None:
