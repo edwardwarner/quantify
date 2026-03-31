@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 class Motion(ABC):
     def __init__(self,
-                    T: int,
+                    T: float,
                     n_steps: int,
                     RANDOM_STATE: int = 7,
                     **kwargs: Any) -> None:
