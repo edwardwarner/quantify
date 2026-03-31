@@ -21,3 +21,12 @@ class BrownianMotion(Motion):
                                   size = (n_paths, self.n_steps))
         X[:, 1:] = np.cumsum(dX, axis = 1)
         return X
+    
+    def plot_paths_2d(self, S: np.ndarray, n_sims: int = 20) -> None:
+        return super().plot_paths_2d(S, n_sims)
+
+    def plot_final_values(self, S: np.ndarray) -> None:
+        return super().plot_final_values(S)
+    
+    def plot_log_returns(self, lr: np.ndarray[tuple[Any, ...], np.dtype[Any]], th_mean: float, th_std: float) -> None:
+        return None
