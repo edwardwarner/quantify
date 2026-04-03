@@ -1,17 +1,27 @@
-from .base import Instrument
+from .base import (
+    BSPriceable,
+    Instrument, 
+    InstrumentT
+)
 
-from .bond import (
+from .equity import (
+    EuropeanOption,
+    BinaryOption
+)
+
+from .bonds import (
     ZeroCouponBond,
     CouponBond
 )
 
-from .option import (
-    EuropeanOption
-)
-
 __all__ = [
+    "BSPriceable",
     "Instrument",
+    "InstrumentT",
+
     "EuropeanOption",
+    "BinaryOption",
+
     "ZeroCouponBond",
     "CouponBond"
 ]
